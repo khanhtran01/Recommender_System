@@ -1,2 +1,2 @@
-# Reconmender_System
+# Recommender_System
 Đồ án AI 2 của nhóm ABC ĐHBK TPHCM
