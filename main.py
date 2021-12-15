@@ -1,95 +1,119 @@
-from time import process_time_ns
-from types import new_class
 from typing import List
 import pandas as pd
 import numpy as np
-from scipy.sparse import csr_matrix
-from sklearn.metrics.pairwise import cosine_similarity, euclidean_distances
 from sklearn.neighbors import NearestNeighbors
-import matplotlib.pyplot as plt
-import seaborn as sns
+from scipy.sparse import csr_matrix
+
+MIN_USER_VOTED = 3 # so voted 1 phim it nhat phai co
+MIN_MOVIE_VOTED = 50 # so phim it nhat 1 user phai vote
+
+np.set_printoptions(suppress=True)
 movies = pd.read_csv('movies.csv', low_memory=False)
 ratings = pd.read_csv('ratings.csv', low_memory=False)
 asc = ratings.sort_values(by=['userId', 'timestamp'])
-# print(asc)
-# print(asc.values)
-
-final_dataset = ratings.pivot(index='movieId',columns='userId',values='rating')
-time_dataset = ratings.pivot(index='movieId',columns='userId',values='timestamp')
-# print(time_dataset.head(10))
-desc = ratings[ratings['userId'] == 1].sort_values(by='timestamp', ascending=False)
-arr =desc.head(1).values
-movie_list = arr[:,1]
-movie_list = np.append(movie_list,16)
-# print(movie_list)
-# print(ratings)
-# a= ratings.loc[movie_list]
-# print(a)
-# print(final_dataset)
-
-final_dataset.fillna(0,inplace=True)
-time_dataset.fillna(0,inplace=True)
-# time_dataset.fillna(0,inplace=True)
-# print(final_dataset.head())
 no_user_voted = ratings.groupby('movieId')['rating'].agg('count')
-# print(no_user_voted)
 no_movies_voted = ratings.groupby('userId')['rating'].agg('count')
+# print(no_user_voted[no_user_voted>3].index)
+# print(ratings)
+# print(no_movies_voted[no_movies_voted>MIN_USER_VOTED])
+# new_rating = ratings.loc[ratings['userId'] == no_user_voted[no_user_voted>3].index]
+ratings = ratings[ratings.movieId.isin(no_user_voted[no_user_voted> MIN_MOVIE_VOTED].index)]
+ratings = ratings[ratings.userId.isin(no_movies_voted[no_movies_voted>MIN_USER_VOTED].index)]
+def getListUid(uid):
+    ratings_temp = ratings    
+    final_dataset = ratings_temp.pivot(index='movieId',columns='userId',values='rating')
+    final_dataset = final_dataset.fillna(final_dataset.mean(axis=0))
+    desc = ratings_temp[ratings_temp['userId'] == uid].sort_values(by='timestamp', ascending=False)
+    arr = desc.head(5).values
+    movie_list = arr[:,1]
+    final_dataset = final_dataset.loc[movie_list]
+    final_dataset.fillna(0,inplace=True)
 
-# print(no_movies_voted[no_movies_voted < 50].index)
+    final_dataset = final_dataset.T
+    new_arr=  np.array(final_dataset)
+    list_data = new_arr.tolist()
+    knn = NearestNeighbors(metric='cosine', algorithm='brute', n_neighbors=20)
+    knn.fit(list_data)
+    distances , indices =knn.kneighbors([list_data[0]],n_neighbors=10)
+    return sorted(zip(distances.tolist()[0], indices.tolist()[0]))
 
-# f,ax = plt.subplots(1,1,figsize=(16,4))
-# # ratings['rating'].plot(kind='hist')
-# plt.scatter(no_user_voted.index,no_user_voted,color='mediumseagreen')
-# plt.axhline(y=10,color='r')
-# plt.xlabel('MovieId')
-# plt.ylabel('No. of users voted')
-# plt.show()
+def checksize (uid):
+    desc = ratings[ratings['userId'] == uid].sort_values(by='timestamp', ascending=False)
+    size = desc.size/4
+    if size > MIN_MOVIE_VOTED:
+        return True
+    return False
 
-final_dataset = final_dataset.loc[no_user_voted[no_user_voted > 10].index,:]
-# print(final_dataset)
-#f,ax = plt.subplots(1,1,figsize=(16,4))
-# plt.scatter(no_movies_voted.index,no_movies_voted,color='mediumseagreen')
-# plt.axhline(y=50,color='r')
-# plt.xlabel('UserId')
-# plt.ylabel('No. of votes by user')
-# plt.show()
+def extend_mode(uid):
+    final_dataset = ratings.pivot(index='movieId',columns='userId',values='rating')
+    final_dataset.fillna(0,inplace=True)
+    no_user_voted = ratings.groupby('movieId')['rating'].agg('count')
+    no_movies_voted = ratings.groupby('userId')['rating'].agg('count')
 
-final_dataset=final_dataset.loc[:,no_movies_voted[no_movies_voted > 50].index]
-# print(final_dataset)
-final_dataset = final_dataset.loc[movie_list]
-# print(final_dataset.T)
-final_dataset = final_dataset.T
-# b = cosine_similarity(final_dataset)
-# np.fill_diagonal(b, 0 )
-# print(b)
-# similarity_with_user = pd.DataFrame(b,index=final_dataset.index)
-# similarity_with_user.columns=final_dataset.index
-# print(similarity_with_user.head())
-# sample = np.array([[0,0,3,0,0],[4,0,0,0,2],[0,0,0,0,1]])
-# sparsity = 1.0 - ( np.count_nonzero(sample) / float(sample.size) )
-# print(sparsity)
-# csr_sample = csr_matrix(sample)
-# print(csr_sample)
-# print(final_dataset.head(10))
-# csr_data = csr_matrix(final_dataset.values)
-# print(final_dataset)
-# print(csr_data)
-# final_dataset.reset_index(inplace=True)
-# print(final_dataset.head(10))
+    final_dataset = final_dataset.loc[no_user_voted[no_user_voted > 10].index,:]
+    final_dataset=final_dataset.loc[:,no_movies_voted[no_movies_voted > 50].index]
+    csr_data = csr_matrix(final_dataset.values)
+    final_dataset.reset_index(inplace=True)
 
-new_arr=  np.array(final_dataset)
-list_data = new_arr.tolist()
-# print(list_data)
-knn = NearestNeighbors(metric='cosine', algorithm='brute', n_neighbors=20, n_jobs=-1)
-knn.fit(list_data)
-distances , indices =knn.kneighbors([list_data[0]],n_neighbors=50)
-rec_movie_indices = sorted(list(zip(indices.squeeze().tolist(),distances.squeeze().tolist())),key=lambda x: x[1])[:0:-1]
-# print(rec_movie_indices)
-list_uid = list(zip(*rec_movie_indices))[0]
-print(list_uid)
-array_phim = []
-for i in list_uid:
-        array_phim.append(ratings[ratings['userId'] == i].sort_values(by='timestamp', ascending=False))
-# print(array_phim[0][array_phim[0]['movieId'] == 671].index)
-for i in range(48):
-        print(array_phim[i][array_phim[i]['movieId'] == 16].index)
+    knn = NearestNeighbors(metric='cosine', algorithm='brute', n_neighbors=20, n_jobs=-1)
+    knn.fit(csr_data)
+
+    # def get_movie_recommendation(movie_name):
+    n_movies_to_reccomend = 10
+    # movie_list = movies[movies['title'].str.contains(movie_name)]  
+    desc = ratings[ratings['userId'] == uid].sort_values(by='timestamp', ascending=False)
+    arr = desc.head(1).values
+    movie_list = arr[:,1]
+
+          
+    movie_idx= movie_list[0]
+    movie_idx = final_dataset[final_dataset['movieId'] == movie_idx].index[0]
+    distances , indices = knn.kneighbors(csr_data[movie_idx],n_neighbors=n_movies_to_reccomend+1)    
+    rec_movie_indices = sorted(list(zip(indices.squeeze().tolist(),distances.squeeze().tolist())),key=lambda x: x[1])[:0:-1]
+    recommend_frame = []
+    for val in rec_movie_indices:
+        movie_idx = final_dataset.iloc[val[0]]['movieId']
+        idx = movies[movies['movieId'] == movie_idx].index
+        recommend_frame.append({'Title':movies.iloc[idx]['title'].values[0],'Distance':val[1]})
+    df = pd.DataFrame(recommend_frame,index=range(1,n_movies_to_reccomend+1)).sort_values(by='Distance', ascending=True)
+    return df
+
+def get_recommendation(uid):
+    if (checksize(uid) == False):
+        return extend_mode(uid)
+    list_uid = getListUid(uid)
+    # print(list_uid)
+    list_uid.pop(0)
+    ratings_temp = ratings
+    test_id = ratings_temp[ratings_temp['userId'] == uid]
+
+    x = int(test_id.size/4)
+    count_phim = []
+    np.set_printoptions(suppress=True,\
+    formatter={'float_kind':'{:0.0f}'.format})
+    for i in list_uid:
+        test_id = ratings_temp[ratings_temp['userId'] == i[1]]
+        x = int(test_id.size/4)
+        for j in range(x):
+            if (test_id.iloc[j].at['rating'] >= 4):
+                count_phim.append(test_id.iloc[j].at['movieId'])
+    unique, counts = np.unique(np.array(count_phim), return_counts=True)
+    final_arr = np.asarray((unique, counts)).T.tolist()
+    top_recommendation = sorted(final_arr,key=lambda l:l[1], reverse=True)
+    list_phim = []
+    for i in range(10):
+        list_phim.append(top_recommendation[i][0])
+    list_movie_name = []
+    for i in list_phim:
+        list_movie_name.append({'Title':movies.loc[i]['title']})
+    # recommend_frame.append({'Title':movies.iloc[idx]['title'].values[0],'Distance':val[1]})
+    df = pd.DataFrame(list_movie_name,index=range(1,10+1))
+    return df
+
+# print(get_recommendation(2))
+if __name__ == "__main__":
+    while(True):
+        uid = int(input("Nhap user ID: "))
+        if (uid == 0):
+            break
+        print(get_recommendation(uid))
