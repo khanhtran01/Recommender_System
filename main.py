@@ -54,12 +54,7 @@ def getListUid(uid):
     distances , indices =knn.kneighbors([list_data[0]],n_neighbors=10)
     return sorted(zip(distances.tolist()[0], indices.tolist()[0]))
 
-def checksize (uid):
-    desc = ratings[ratings['userId'] == uid].sort_values(by='timestamp', ascending=False)
-    size = desc.size/4
-    if size > MIN_MOVIE_VOTED:
-        return True
-    return False
+
 
 def extend_mode(uid):
     """sử dụng trong trường hợp uid là người dùng bị lọc
@@ -96,6 +91,13 @@ def extend_mode(uid):
         recommend_frame.append({'Title':movies.iloc[idx]['title'].values[0],'Distance':val[1]})
     df = pd.DataFrame(recommend_frame,index=range(1,n_movies_to_reccomend+1)).sort_values(by='Distance', ascending=True)
     return df
+
+def checksize (uid):
+    desc = ratings[ratings['userId'] == uid].sort_values(by='timestamp', ascending=False)
+    size = desc.size/4
+    if size > MIN_MOVIE_VOTED:
+        return True
+    return False
 
 def get_recommendation(uid):
     # kiểm tra uid có thuộc diện bị lọc bnỏ hay k
