@@ -18,8 +18,8 @@ no_user_voted = ratings.groupby('movieId')['rating'].agg('count')
 # đếm số lần vote của 1 user
 no_movies_voted = ratings.groupby('userId')['rating'].agg('count')
 # lọc ra những user và movie không thỏa điều kiện
-ratings = ratings[ratings.movieId.isin(no_user_voted[no_user_voted> MIN_MOVIE_VOTED].index)]
-ratings = ratings[ratings.userId.isin(no_movies_voted[no_movies_voted>MIN_USER_VOTED].index)]
+ratings_temp = ratings[ratings.movieId.isin(no_user_voted[no_user_voted> MIN_MOVIE_VOTED].index)]
+ratings_temp = ratings[ratings.userId.isin(no_movies_voted[no_movies_voted>MIN_USER_VOTED].index)]
 
 def getListUid(uid):
     """Trả về danh sách userId giống với uid"""
@@ -30,9 +30,14 @@ def getListUid(uid):
     # final_dataset = final_dataset.fillna(final_dataset.mean(axis=0))
 
     #sort file rating theo userId và time
-    desc = ratings_temp[ratings_temp['userId'] == uid].sort_values(by='timestamp', ascending=False)
+    desc = ratings[ratings['userId'] == uid].sort_values(by='timestamp', ascending=False)
     # lấy 5 giá trị có time lớn nhất cho user đã chọn
-    arr = desc.head(5).values
+    try:
+        arr = desc.head(5).values
+        
+    except NameError:
+        print("Nguoi dung phai xem it nhat 5 phim")
+
     # chuyển sang dạng list và tách chỉ lấy list movie
     movie_list = arr[:,1]
     
@@ -61,46 +66,11 @@ def checksize (uid):
         return True
     return False
 
-def extend_mode(uid):
-    """sử dụng trong trường hợp uid là người dùng bị lọc
-    ở mode này thì dùng knn dựa trên số sao của bộ phim"""
-    final_dataset = ratings.pivot(index='movieId',columns='userId',values='rating')
-    final_dataset.fillna(0,inplace=True)
-    no_user_voted = ratings.groupby('movieId')['rating'].agg('count')
-    no_movies_voted = ratings.groupby('userId')['rating'].agg('count')
-
-    final_dataset = final_dataset.loc[no_user_voted[no_user_voted > 10].index,:]
-    final_dataset=final_dataset.loc[:,no_movies_voted[no_movies_voted > 50].index]
-    csr_data = csr_matrix(final_dataset.values)
-    final_dataset.reset_index(inplace=True)
-
-    knn = NearestNeighbors(metric='cosine', algorithm='brute', n_neighbors=20, n_jobs=-1)
-    knn.fit(csr_data)
-
-    # def get_movie_recommendation(movie_name):
-    n_movies_to_reccomend = 10
-    # movie_list = movies[movies['title'].str.contains(movie_name)]  
-    desc = ratings[ratings['userId'] == uid].sort_values(by='timestamp', ascending=False)
-    arr = desc.head(1).values
-    movie_list = arr[:,1]
-
-          
-    movie_idx= movie_list[0]
-    movie_idx = final_dataset[final_dataset['movieId'] == movie_idx].index[0]
-    distances , indices = knn.kneighbors(csr_data[movie_idx],n_neighbors=n_movies_to_reccomend+1)    
-    rec_movie_indices = sorted(list(zip(indices.squeeze().tolist(),distances.squeeze().tolist())),key=lambda x: x[1])[:0:-1]
-    recommend_frame = []
-    for val in rec_movie_indices:
-        movie_idx = final_dataset.iloc[val[0]]['movieId']
-        idx = movies[movies['movieId'] == movie_idx].index
-        recommend_frame.append({'Title':movies.iloc[idx]['title'].values[0],'Distance':val[1]})
-    df = pd.DataFrame(recommend_frame,index=range(1,n_movies_to_reccomend+1)).sort_values(by='Distance', ascending=True)
-    return df
 
 def get_recommendation(uid):
     # kiểm tra uid có thuộc diện bị lọc bnỏ hay k
-    if (checksize(uid) == False):
-        return extend_mode(uid)
+    # if (checksize(uid) == False):
+    #     return extend_mode(uid)
     list_uid = getListUid(uid)
 
     list_uid.pop(0)
