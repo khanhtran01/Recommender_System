@@ -17,10 +17,13 @@ asc = ratings.sort_values(by=['userId', 'timestamp'])
 no_user_voted = ratings.groupby('movieId')['rating'].agg('count')
 # đếm số lần vote của 1 user
 no_movies_voted = ratings.groupby('userId')['rating'].agg('count')
+# print(no_user_voted)
+
 # lọc ra những user và movie không thỏa điều kiện
 ratings_temp = ratings[ratings.movieId.isin(no_user_voted[no_user_voted> MIN_MOVIE_VOTED].index)]
-ratings_temp = ratings[ratings.userId.isin(no_movies_voted[no_movies_voted>MIN_USER_VOTED].index)]
-
+ratings_temp = ratings_temp[ratings_temp.userId.isin(no_movies_voted[no_movies_voted>MIN_USER_VOTED].index)]
+print(ratings_temp)
+print(ratings)
 def getListUid(uid):
     """Trả về danh sách userId giống với uid"""
     ratings_temp = ratings    
