@@ -18,12 +18,12 @@ no_user_voted = ratings.groupby('movieId')['rating'].agg('count')
 # đếm số lần vote của 1 user
 no_movies_voted = ratings.groupby('userId')['rating'].agg('count')
 # print(no_user_voted)
-
+# 
 # lọc ra những user và movie không thỏa điều kiện
 ratings_temp = ratings[ratings.movieId.isin(no_user_voted[no_user_voted> MIN_MOVIE_VOTED].index)]
 ratings_temp = ratings_temp[ratings_temp.userId.isin(no_movies_voted[no_movies_voted>MIN_USER_VOTED].index)]
-print(ratings_temp)
-print(ratings)
+# print(ratings_temp)
+# print(ratings)
 def getListUid(uid):
     """Trả về danh sách userId giống với uid"""
     ratings_temp = ratings    
@@ -37,13 +37,14 @@ def getListUid(uid):
     # lấy 5 giá trị có time lớn nhất cho user đã chọn
     try:
         arr = desc.head(5).values
-        
+        # print(arr)
     except NameError:
         print("Nguoi dung phai xem it nhat 5 phim")
 
     # chuyển sang dạng list và tách chỉ lấy list movie
     movie_list = arr[:,1]
-    
+    rating_list = arr[:,2]
+    # print(rating_list)
     
     # trên dữ liệu final_dataset chỉ lấy những bộ film có trong list ở trên
     final_dataset = final_dataset.loc[movie_list]
@@ -52,6 +53,8 @@ def getListUid(uid):
     # xoay bảng để row = userId và clolumn = movieId
     # phải xoay theo định dạng của hàm knn sẽ sử dụng
     final_dataset = final_dataset.T
+    # print(final_dataset)
+    # print(final_dataset)
     new_arr=  np.array(final_dataset)
     list_data = new_arr.tolist()
     # khai báo KNN và set giá giá trị thuật toán cho nó
@@ -59,7 +62,9 @@ def getListUid(uid):
     # chọn dataset cho thuật toán
     knn.fit(list_data)
     # trả về 10 user gần giống với uid nhất
-    distances , indices =knn.kneighbors([list_data[0]],n_neighbors=10)
+    # print([list_data[0]])
+
+    distances , indices =knn.kneighbors([rating_list],n_neighbors=10)
     return sorted(zip(distances.tolist()[0], indices.tolist()[0]))
 
 def checksize (uid):
@@ -77,6 +82,7 @@ def get_recommendation(uid):
     list_uid = getListUid(uid)
 
     list_uid.pop(0)
+    # print(list_uid)
     ratings_temp = ratings
     # test_id = ratings_temp[ratings_temp['userId'] == uid]
 
