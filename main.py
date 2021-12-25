@@ -101,15 +101,18 @@ def get_recommendation(uid):
                 count_phim.append(test_id.iloc[j].at['movieId'])
     unique, counts = np.unique(np.array(count_phim), return_counts=True)
     final_arr = np.asarray((unique, counts)).T.tolist()
+    # print(final_arr)
     # sort các bộ phim theo số lần được vote >= 4 nhiều nhấ
     top_recommendation = sorted(final_arr,key=lambda l:l[1], reverse=True)
     list_phim = []
+    # print(top_recommendation)
     # lấy được 10 bộ phim
     for i in range(10):
         list_phim.append(top_recommendation[i][0])
     list_movie_name = []
+    # print(list_phim)
     for i in list_phim:
-        list_movie_name.append({'Title':movies.loc[i]['title']})
+        list_movie_name.append({'Title':list(movies.loc[movies.movieId == i, 'title'])})
     # recommend_frame.append({'Title':movies.iloc[idx]['title'].values[0],'Distance':val[1]})
     df = pd.DataFrame(list_movie_name,index=range(1,10+1))
     return df
@@ -117,6 +120,7 @@ def get_recommendation(uid):
 if __name__ == "__main__":
     while(True):
         uid = int(input("Nhap user ID: "))
+        # uid = 346
         if (uid == 0):
             break
         print(get_recommendation(uid))
